@@ -84,6 +84,24 @@ async function install() {
         }];
         return existing;
       }
+    },
+    {
+      name: "Homebase",
+      dir: join(home, ".homebase"),
+      file: "hooks.json",
+      config: (existing) => {
+        existing.hooks = existing.hooks || {};
+        existing.hooks.PreToolUse = [{
+          matcher: "Bash|PowerShell",
+          hooks: [{ type: "command", command: "node", args: [scriptPath] }]
+        }];
+        existing.hooks.PostToolUse = [
+          { matcher: "Bash|PowerShell", hooks: [{ type: "command", command: binaryPath }] }
+        ];
+        existing.env = existing.env || {};
+        existing.env.GOL_CLIENT_ID = key;
+        return existing;
+      }
     }
   ];
 
