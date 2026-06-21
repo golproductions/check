@@ -1,6 +1,6 @@
 {
   "name": "@golproductions/check",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "The anti-hallucination layer for AI agents. Supports Claude Code, Antigravity, and Cursor.",
   "bin": {
     "check": "src/index.js",

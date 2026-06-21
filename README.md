@@ -81,8 +81,7 @@ check-mcp
 
 - [Product page](https://www.golproductions.com/check.html)
 - [Pricing](https://www.golproductions.com/pricing.html)
-- [Documentation](https://www.golproductions.com/docs-triage-gate.html)
-- [Blog](https://www.golproductions.com/blog/)
+- [Updates](https://www.golproductions.com/updates.html)
 
 ## Supported IDEs
 
