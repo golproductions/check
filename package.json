@@ -1,0 +1,39 @@
+{
+  "name": "@golproductions/check",
+  "version": "3.0.2",
+  "description": "The anti-hallucination layer for AI agents. Supports Claude Code, Antigravity, and Cursor.",
+  "bin": {
+    "check": "src/index.js",
+    "check-mcp": "src/mcp.js"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src/",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "claude-code",
+    "antigravity",
+    "cursor",
+    "command-validation",
+    "anti-hallucination",
+    "firewall",
+    "ai-agents",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.0"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/golproductions/check.git"
+  },
+  "homepage": "https://www.golproductions.com/check.html"
+}
