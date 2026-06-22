@@ -1,7 +1,7 @@
 {
   "name": "@golproductions/check",
-  "version": "3.0.4",
-  "description": "The anti-hallucination layer for AI agents. Supports Claude Code, Antigravity, and Cursor.",
+  "version": "3.0.5",
+  "description": "The anti-hallucination firewall for AI agents. Supports Claude Code, Cursor, Gemini CLI, Windsurf, Amazon Q, Continue, Roo Code, and more.",
   "bin": {
     "check": "src/index.js",
     "check-mcp": "src/mcp.js"
@@ -32,6 +32,12 @@
     "cursor",
     "antigravity",
     "windsurf",
+    "devin-desktop",
+    "gemini-cli",
+    "amazon-q",
+    "continue-dev",
+    "roo-code",
+    "cline",
     "ai-guardrails",
     "llm-validation",
     "mcp",

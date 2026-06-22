@@ -37,6 +37,8 @@ async function install() {
   const binaryPath = join(hooksDir, "truth-gate" + ext);
   await downloadBinary(binaryPath);
 
+  const mcpEntry = { command: "npx", args: ["@golproductions/check", "--mcp"], env: { GOL_CLIENT_ID: key } };
+
   const targets = [
     {
       name: "Claude Code",
@@ -58,17 +60,19 @@ async function install() {
       }
     },
     {
-      name: "Antigravity IDE",
-      dir: join(home, ".gemini", "config"),
-      file: "hooks.json",
+      name: "Gemini CLI / Antigravity",
+      dir: join(home, ".gemini"),
+      file: "settings.json",
       config: (existing) => {
-        existing["check-gate"] = {
-          enabled: true,
-          PreToolUse: [{
-            matcher: "run_command",
-            hooks: [{ type: "command", command: "node " + scriptPath }]
-          }]
-        };
+        existing.hooks = existing.hooks || {};
+        existing.hooks.BeforeTool = existing.hooks.BeforeTool || [];
+        const hooks = existing.hooks.BeforeTool;
+        if (!hooks.find(h => h.hooks?.some(hh => hh.name === "check-gate"))) {
+          hooks.push({
+            matcher: ".*",
+            hooks: [{ type: "command", command: "node " + scriptPath, name: "check-gate" }]
+          });
+        }
         return existing;
       }
     },
@@ -102,12 +106,64 @@ async function install() {
         existing.env.GOL_CLIENT_ID = key;
         return existing;
       }
+    },
+    {
+      name: "Windsurf (MCP)",
+      dir: join(home, ".codeium", "windsurf"),
+      file: "mcp_config.json",
+      config: (existing) => {
+        existing.mcpServers = existing.mcpServers || {};
+        existing.mcpServers.Check = mcpEntry;
+        return existing;
+      }
+    },
+    {
+      name: "Continue (MCP)",
+      dir: join(process.cwd(), ".continue", "mcpServers"),
+      file: "check.json",
+      config: () => {
+        return { mcpServers: { Check: mcpEntry } };
+      }
+    },
+    {
+      name: "Amazon Q Developer (MCP)",
+      dir: join(home, ".aws", "amazonq"),
+      file: "mcp.json",
+      config: (existing) => {
+        existing.mcpServers = existing.mcpServers || {};
+        existing.mcpServers.Check = { type: "stdio", ...mcpEntry };
+        return existing;
+      }
+    },
+    {
+      name: "Roo Code (project MCP)",
+      dir: join(process.cwd(), ".roo"),
+      file: "mcp.json",
+      config: (existing) => {
+        existing.mcpServers = existing.mcpServers || {};
+        existing.mcpServers.Check = mcpEntry;
+        return existing;
+      }
+    },
+    {
+      name: "Project MCP (shared)",
+      dir: process.cwd(),
+      file: ".mcp.json",
+      config: (existing) => {
+        existing.mcpServers = existing.mcpServers || {};
+        existing.mcpServers.Check = mcpEntry;
+        return existing;
+      }
     }
   ];
 
+  const mcpTargets = ["Windsurf (MCP)", "Continue (MCP)", "Amazon Q Developer (MCP)", "Roo Code (project MCP)", "Project MCP (shared)"];
+
   let hasClaude = false;
   for (const t of targets) {
-    if (!existsSync(t.dir)) continue;
+    const isMcp = mcpTargets.includes(t.name);
+    if (!isMcp && !existsSync(t.dir)) continue;
+    if (isMcp) mkdirSync(t.dir, { recursive: true });
     const filepath = join(t.dir, t.file);
     let existing = {};
     try { existing = JSON.parse(readFileSync(filepath, "utf8")); } catch {}
@@ -147,31 +203,37 @@ if (process.argv.includes("--mcp")) { await import("./mcp.js"); process.exit(0);
 
 function detect(p) {
   if (typeof p.command === "string" && !p.tool_input) return "cursor";
-  if (p.hook_event_name === "BeforeTool") return "gemini";
-  if (p.toolCall?.argumentsJson) return "antigravity";
+  if (p.hook_event_name === "BeforeTool" || p.toolCall?.argumentsJson) return "gemini";
   return "claude";
 }
 
 function cmd(p, f) {
   if (f === "cursor") return p.command;
-  if (f === "antigravity") {
-    try {
-      const a = typeof p.toolCall.argumentsJson === "string" ? JSON.parse(p.toolCall.argumentsJson) : p.toolCall.argumentsJson;
-      return a.command || a.CommandLine || a.command_line;
-    } catch { return null; }
+  if (f === "gemini") {
+    if (p.tool_input?.command) return p.tool_input.command;
+    if (p.toolCall?.argumentsJson) {
+      try {
+        const a = typeof p.toolCall.argumentsJson === "string" ? JSON.parse(p.toolCall.argumentsJson) : p.toolCall.argumentsJson;
+        return a.command || a.CommandLine || a.command_line;
+      } catch { return null; }
+    }
+    return null;
   }
   return p.tool_input?.command;
 }
 
 function out(f, ok, reason) {
   if (ok) {
-    const r = { cursor: { permission: "allow" }, gemini: { decision: "allow" }, antigravity: { decision: "allow" }, claude: { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow" } } };
-    process.stdout.write(JSON.stringify(r[f]));
+    const r = { cursor: { permission: "allow" }, gemini: { decision: "allow" }, claude: { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow" } } };
+    process.stdout.write(JSON.stringify(r[f] || r.claude));
     process.exit(0);
   }
-  if (f === "gemini" || f === "antigravity") { process.stderr.write(reason + "\n"); process.exit(2); }
+  if (f === "gemini") {
+    process.stdout.write(JSON.stringify({ decision: "deny", reason }));
+    process.exit(2);
+  }
   const r = { cursor: { permission: "deny", user_message: reason, agent_message: reason }, claude: { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } } };
-  process.stdout.write(JSON.stringify(r[f]));
+  process.stdout.write(JSON.stringify(r[f] || r.claude));
   process.exit(0);
 }
 
