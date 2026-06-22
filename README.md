@@ -11,12 +11,12 @@ No AI inside. Deterministic. Same input, same output. Every time.
 One command. Every IDE.
 
 ```
-npx @golproductions/check --install your_key
+npx @golproductions/check --install YOUR_KEY
 ```
 
-Auto-detects **Claude Code**, **Cursor**, and **Antigravity**. Writes the hook config, sets your key, done. Restart your IDE to activate.
+Auto-detects and configures **Claude Code**, **Cursor**, **Gemini CLI / Antigravity**, and MCP servers for **Windsurf / Devin Desktop**, **Continue**, **Amazon Q**, and **Roo Code**.
 
-Get your free API key (120 free checks) at [golproductions.com](https://www.golproductions.com/check.html)
+Get your free API key (120 free checks) at [golproductions.com/check](https://www.golproductions.com/check.html)
 
 ## What it catches
 
@@ -28,12 +28,64 @@ Get your free API key (120 free checks) at [golproductions.com](https://www.golp
 | **Broken syntax** | AI writes a file with mismatched brackets. **Flagged.** |
 | **Post-write integrity** | After the AI writes a file, imports and function calls are re-verified. **Two checkpoints.** |
 
+## Supported environments
+
+**Hooks (automatic, pre-execution)**
+
+| Environment | Integration |
+|-------------|-------------|
+| Claude Code | PreToolUse hook |
+| Cursor | beforeShellExecution hook |
+| Gemini CLI / Antigravity | BeforeTool hook |
+
+**MCP Server (agent-driven)**
+
+| Environment | Integration |
+|-------------|-------------|
+| Claude Code | MCP server |
+| Cursor | MCP server |
+| Windsurf / Devin Desktop | MCP server |
+| Continue | MCP server |
+| Amazon Q | MCP server |
+| Roo Code | MCP server |
+| Claude Desktop | MCP server |
+| Any MCP client | MCP server |
+
+**Editor plugins**
+
+| Editor | Install |
+|--------|---------|
+| VS Code / Cursor / Devin Desktop | [Open VSX](https://open-vsx.org/extension/golproductions/gol-check) |
+| JetBrains (IntelliJ, WebStorm, PyCharm, GoLand, Rider, PHPStorm, RubyMine) | [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/com.golproductions.check) |
+| Neovim | [check.nvim](https://github.com/golproductions/check.nvim) |
+| Emacs | [check.el](https://github.com/golproductions/check.el) |
+| Sublime Text | [GOLCheck](https://github.com/golproductions/check-sublime) |
+| Zed | [check-zed](https://github.com/golproductions/check-zed) |
+
+**Direct API**
+
+```
+POST https://triage.golproductions.com/preflight
+```
+
+## MCP Server
+
+Run Check as an MCP server for direct agent integration:
+
+```
+npx @golproductions/check check-mcp
+```
+
+Exposes two tools:
+- **Check** — validates a command, returns `RUNNABLE` or `INVALID`
+- **CheckAndExecute** — validates then executes, blocking invalid commands before they reach the shell
+
 ## How it works
 
 ```
-AI writes code
+AI generates code
     ↓
-Check intercepts (pre-execution hook)
+Check intercepts (pre-execution)
     ↓
 Verifies against your actual project
     ↓
@@ -42,18 +94,18 @@ Real → allowed  |  Not real → blocked
 After file write → second verification pass
 ```
 
-Check runs as a **PreToolUse** and **PostToolUse** hook. Your AI never knows it's there. Sub-100ms response time.
+Sub-100ms. Your AI never knows it's there.
 
 ## Why not just use another guardrail?
 
-| | Check | Security firewalls (AEGIS, Pipelock) | LLM guardrails (Guardrails AI, Lakera) | Eval platforms (Galileo, Braintrust) |
+| | Check | Security firewalls | LLM guardrails | Eval platforms |
 |---|---|---|---|---|
 | **Checks code correctness** | Yes | No — checks safety | No — checks format | No — scores after |
 | **Knows your project** | Yes | No | No | No |
 | **Pre-execution** | Yes | Yes | Varies | No |
 | **Post-write verification** | Yes | No | No | No |
 | **No AI inside** | Yes | Varies | Uses LLMs | Uses LLMs |
-| **Per-check pricing** | $0.0068 AUD | Free (self-hosted) | Enterprise pricing | SaaS pricing |
+| **Per-check pricing** | $0.0068 AUD | Free (self-hosted) | Enterprise | SaaS |
 
 Every other tool checks the AI. **Check checks the code.**
 
@@ -69,27 +121,12 @@ Every other tool checks the AI. **Check checks the code.**
 | $25 | ~3,676 | $0.0068 |
 | $50 | ~7,352 | $0.0068 |
 
-## MCP Server
-
-Check also runs as an MCP (Model Context Protocol) server for direct integration:
-
-```
-check-mcp
-```
-
 ## Links
 
 - [Product page](https://www.golproductions.com/check.html)
 - [Pricing](https://www.golproductions.com/pricing.html)
 - [Updates](https://www.golproductions.com/updates.html)
-
-## Supported IDEs
-
-- Claude Code
-- Cursor
-- Antigravity
-
-More coming: Windsurf, Cline, Continue, Zed, Aider, JetBrains, GitHub Copilot.
+- [Blog](https://www.golproductions.com/blog/)
 
 ## License
 
