@@ -5,11 +5,29 @@ import { homedir, platform, arch } from "node:os";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 
-const VERSION = "3.0.2";
+const VERSION = "3.0.7";
 const BINARY_VERSION = "3.0.0";
 const API = "https://triage.golproductions.com/preflight";
 const CDN = "https://pub-e55366a7f5994be9be04f0e205179f4a.r2.dev/releases";
 const CLIENT_ID = process.env.GOL_CLIENT_ID || "";
+
+async function validateKey(key) {
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-GOL-CLIENT-ID": key, "User-Agent": "c/" + VERSION },
+      body: JSON.stringify({ command: "echo check-install-verify", cwd: process.cwd(), v: VERSION }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.ok) return { valid: true, expired: false };
+    let body = {};
+    try { body = await res.json(); } catch {}
+    const expired = /expir/i.test(body.reason || body.error || body.message || "");
+    return { valid: false, expired };
+  } catch {
+    return { valid: false, expired: false };
+  }
+}
 
 async function downloadBinary(dest) {
   const os = platform() === "win32" ? "win" : platform() === "darwin" ? "macos" : "linux";
@@ -23,7 +41,30 @@ async function downloadBinary(dest) {
 }
 
 async function install() {
-  const key = process.argv[3] || process.env.GOL_CLIENT_ID || "your_key";
+  const key = process.argv[3] || process.env.GOL_CLIENT_ID || "";
+
+  if (!key || key === "your_key") {
+    console.log("\n  Check requires a valid Client ID to install.\n");
+    console.log("  Get your key (free): https://golproductions.com/check\n");
+    console.log("  Then run:");
+    console.log("  npx @golproductions/check --install YOUR_KEY\n");
+    process.exit(1);
+  }
+
+  const result = await validateKey(key);
+  if (!result.valid) {
+    if (result.expired) {
+      console.log("\n  Your Client ID has expired: " + key);
+      console.log("\n  Renew your key at: https://golproductions.com/check\n");
+    } else {
+      console.log("\n  Invalid Client ID: " + key);
+      console.log("\n  Get a valid key at: https://golproductions.com/check\n");
+    }
+    process.exit(1);
+  }
+
+  console.log("\n  Key verified. Installing Check...\n");
+
   const home = homedir();
   let installed = 0;
 
@@ -249,7 +290,7 @@ async function main() {
     f = detect(p);
     const c = cmd(p, f);
     if (!c) { out(f, true); return; }
-    if (!CLIENT_ID) { process.stderr.write("check: GOL_CLIENT_ID not set. Get your key at https://www.golproductions.com/check.html\n"); out(f, true); return; }
+    if (!CLIENT_ID) { process.stderr.write("check: GOL_CLIENT_ID not set. Get your key at https://golproductions.com/check\n"); out(f, true); return; }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(API, {
