@@ -1,7 +1,7 @@
 {
   "name": "@golproductions/check",
-  "version": "3.0.5",
-  "description": "The anti-hallucination firewall for AI agents. Supports Claude Code, Cursor, Gemini CLI, Windsurf, Amazon Q, Continue, Roo Code, and more.",
+  "version": "3.0.7",
+  "description": "Anti-hallucination firewall for AI agents. Validates commands, imports, and function calls before execution. Supports Claude Code, Cursor, Gemini CLI, Windsurf, JetBrains, Neovim, Emacs, Sublime Text, Zed, and any MCP client.",
   "bin": {
     "check": "src/index.js",
     "check-mcp": "src/mcp.js"
