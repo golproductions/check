@@ -6,7 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const VERSION = "2.4.0";
+const VERSION = "3.0.8";
 const API = "https://triage.golproductions.com/preflight";
 const CLIENT_ID = process.env.GOL_CLIENT_ID;
 const IS_WIN = process.platform === "win32";
