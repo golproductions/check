@@ -5,7 +5,7 @@ import { homedir, platform, arch } from "node:os";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 
-const VERSION = "3.0.7";
+const VERSION = "3.0.8";
 const BINARY_VERSION = "3.0.0";
 const API = "https://triage.golproductions.com/preflight";
 const CDN = "https://pub-e55366a7f5994be9be04f0e205179f4a.r2.dev/releases";
@@ -290,7 +290,7 @@ async function main() {
     f = detect(p);
     const c = cmd(p, f);
     if (!c) { out(f, true); return; }
-    if (!CLIENT_ID) { process.stderr.write("check: GOL_CLIENT_ID not set. Get your key at https://golproductions.com/check\n"); out(f, true); return; }
+    if (!CLIENT_ID) { out(f, false, "check: GOL_CLIENT_ID not set. Get your key at https://golproductions.com/check"); return; }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(API, {
@@ -303,7 +303,7 @@ async function main() {
     const d = await res.json();
     if (d.verdict === "runnable") { out(f, true); }
     else { out(f, false, d.reason || "denied — address the issue before continuing"); }
-  } catch { out(f, true); }
+  } catch { out(f, false, "check: verification failed, command blocked"); }
 }
 
 main();

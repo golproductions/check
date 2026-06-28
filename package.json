@@ -1,7 +1,7 @@
 {
   "name": "@golproductions/check",
-  "version": "3.0.7",
-  "description": "Anti-hallucination firewall for AI agents. Validates commands, imports, and function calls before execution. Supports Claude Code, Cursor, Gemini CLI, Windsurf, JetBrains, Neovim, Emacs, Sublime Text, Zed, and any MCP client.",
+  "version": "3.0.8",
+  "description": "The universal anti-hallucination engine for AI coding agents. Catches what is not real before it reaches your project.",
   "bin": {
     "check": "src/index.js",
     "check-mcp": "src/mcp.js"
@@ -18,35 +18,19 @@
   "keywords": [
     "anti-hallucination",
     "ai-hallucination",
-    "hallucination-detection",
-    "ai-firewall",
     "ai-agents",
-    "ai-code-validation",
-    "command-validation",
-    "import-validation",
-    "function-verification",
-    "code-integrity",
-    "pre-execution",
-    "deterministic-verification",
+    "ai-coding-agent",
     "claude-code",
     "cursor",
-    "antigravity",
     "windsurf",
-    "devin-desktop",
     "gemini-cli",
     "amazon-q",
     "continue-dev",
     "roo-code",
-    "cline",
-    "ai-guardrails",
-    "llm-validation",
     "mcp",
     "model-context-protocol",
-    "ai-coding-agent",
-    "code-verification",
     "ai-safety",
-    "developer-tools",
-    "devtools"
+    "developer-tools"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
@@ -57,5 +41,5 @@
     "type": "git",
     "url": "git+https://github.com/golproductions/check.git"
   },
-  "homepage": "https://www.golproductions.com/check.html"
+  "homepage": "https://golproductions.com/check"
 }
