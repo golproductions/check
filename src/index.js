@@ -5,7 +5,7 @@ import { homedir, platform, arch } from "node:os";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 
-const VERSION = "3.1.0";
+const VERSION = "3.1.1";
 const BINARY_VERSION = "3.0.0";
 const API = "https://triage.golproductions.com/preflight";
 const CDN = "https://pub-e55366a7f5994be9be04f0e205179f4a.r2.dev/releases";
@@ -79,11 +79,11 @@ async function install() {
   const scriptSrc = readFileSync(new URL(import.meta.url), "utf8");
   const hooksDir = join(home, ".check");
   mkdirSync(hooksDir, { recursive: true });
-  const scriptPath = join(hooksDir, "check.mjs");
+  const scriptPath = join(hooksDir, "check.mjs").replace(/\\/g, "/");
   writeFileSync(scriptPath, scriptSrc, "utf8");
 
   const ext = platform() === "win32" ? ".exe" : "";
-  const binaryPath = join(hooksDir, "truth-gate" + ext);
+  const binaryPath = join(hooksDir, "truth-gate" + ext).replace(/\\/g, "/");
   await downloadBinary(binaryPath);
 
   const mcpEntry = { command: "npx", args: ["@golproductions/check", "--mcp"], env: { GOL_CLIENT_ID: key } };

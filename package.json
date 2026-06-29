@@ -1,6 +1,6 @@
 {
   "name": "@golproductions/check",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "The universal anti-hallucination engine for AI coding agents. Catches what is not real before it reaches your project.",
   "bin": {
     "check": "src/index.js",
