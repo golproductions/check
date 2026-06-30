@@ -5,7 +5,7 @@ import { homedir, platform, arch } from "node:os";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 
-const VERSION = "3.1.1";
+const VERSION = "3.1.2";
 const BINARY_VERSION = "3.0.0";
 const API = "https://triage.golproductions.com/preflight";
 const CDN = "https://pub-e55366a7f5994be9be04f0e205179f4a.r2.dev/releases";
@@ -647,6 +647,23 @@ async function main() {
     });
     clearTimeout(timer);
     const d = await res.json();
+
+    // Billing and account states arrive as non-2xx and carry no `verdict`.
+    // Surface what the server actually said so the user knows this is about
+    // their account, not their command. Without this, the free-tier wall
+    // (HTTP 402) falls through to the generic "denied" below and reads like
+    // the command itself was rejected.
+    if (!res.ok) {
+      if (res.status === 402) {
+        const free = d.daily_free || 120;
+        const upsell = d.upgrade || "Top up at https://www.golproductions.com/console.html";
+        out(f, false, `check: you've used all ${free} free checks for today. Credits you buy never expire. ${upsell}`);
+        return;
+      }
+      out(f, false, d.reason || d.error || "check: request not authorized, command blocked");
+      return;
+    }
+
     if (d.verdict === "runnable") { out(f, true); }
     else { out(f, false, d.reason || "denied — address the issue before continuing"); }
   } catch { out(f, false, "check: verification failed, command blocked"); }
