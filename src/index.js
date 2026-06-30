@@ -5,7 +5,7 @@ import { homedir, platform, arch } from "node:os";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 
-const VERSION = "3.1.2";
+const VERSION = "3.1.3";
 const BINARY_VERSION = "3.0.0";
 const API = "https://triage.golproductions.com/preflight";
 const CDN = "https://pub-e55366a7f5994be9be04f0e205179f4a.r2.dev/releases";
@@ -37,6 +37,35 @@ async function validateKey(key) {
   }
 }
 
+// Stable anonymous device fingerprint: one-way hash of coarse machine facts.
+// No personal data. Server uses it only to rate-limit free-key minting.
+async function deviceFingerprint() {
+  const { createHash } = await import("node:crypto");
+  const { hostname, userInfo } = await import("node:os");
+  let user = "";
+  try { user = userInfo().username || ""; } catch {}
+  const seed = [hostname(), platform(), arch(), user].join("|");
+  return createHash("sha256").update(seed).digest("hex");
+}
+
+// Mint a free key with no email and no browser. Returns the client_id or null.
+async function mintInstantKey() {
+  try {
+    const fp = await deviceFingerprint();
+    const res = await fetch(API.replace("/preflight", "/instant-key"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": "c/" + VERSION },
+      body: JSON.stringify({ fingerprint: fp, channel: "npm" }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return d && d.client_id ? d.client_id : null;
+  } catch {
+    return null;
+  }
+}
+
 async function downloadBinary(dest) {
   const os = platform() === "win32" ? "win" : platform() === "darwin" ? "macos" : "linux";
   const cpu = arch() === "arm64" ? "arm64" : "x64";
@@ -49,14 +78,19 @@ async function downloadBinary(dest) {
 }
 
 async function install() {
-  const key = process.argv[3] || process.env.GOL_CLIENT_ID || "";
+  let key = process.argv[3] || process.env.GOL_CLIENT_ID || "";
 
+  // No key provided: mint one instantly. No email, no browser, no copy-paste.
   if (!key || key === "your_key") {
-    console.log("\n  Check requires a valid Client ID to install.\n");
-    console.log("  Get your key (free): https://golproductions.com/check\n");
-    console.log("  Then run:");
-    console.log("  npx @golproductions/check --install YOUR_KEY\n");
-    process.exit(1);
+    console.log("\n  Activating Check (free, no signup)...\n");
+    key = await mintInstantKey();
+    if (!key) {
+      console.log("  Could not activate automatically (offline, or this network hit its daily limit).\n");
+      console.log("  Get a key the manual way: https://golproductions.com/check\n");
+      console.log("  Then run:  npx @golproductions/check --install YOUR_KEY\n");
+      process.exit(1);
+    }
+    console.log("  Activated. 120 free checks per day.\n");
   }
 
   const result = await validateKey(key);
@@ -642,7 +676,7 @@ async function main() {
     const res = await fetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-GOL-CLIENT-ID": CLIENT_ID, "User-Agent": "c/" + VERSION },
-      body: JSON.stringify({ command: c, cwd: p.cwd || process.cwd(), platform: f, tool_name: p.tool_name, transcript_path: p.transcript_path, v: VERSION }),
+      body: JSON.stringify({ command: c, cwd: p.cwd || process.cwd(), platform: f, channel: "npm", tool_name: p.tool_name, transcript_path: p.transcript_path, v: VERSION }),
       signal: controller.signal
     });
     clearTimeout(timer);
