@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "labels": ["dependencies"],
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "description": "Auto-merge patch and minor updates once CI is green, so the installer stays current untouched.",
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    }
+  ]
+}
