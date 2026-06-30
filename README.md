@@ -7,12 +7,10 @@ No AI inside. Deterministic. Sub-100ms.
 ## Install
 
 ```
-npx @golproductions/check --install YOUR_KEY
+npx @golproductions/check --install
 ```
 
-One command. Auto-detects your environment and configures everything.
-
-120 free checks on signup at [golproductions.com/check](https://www.golproductions.com/check.html)
+One command. It auto-detects your AI tools, wires them up, and activates a free key on first run. No signup, no API key to paste, no browser.
 
 ## Supported environments
 
@@ -20,15 +18,30 @@ Claude Code, Cursor, Gemini CLI, Windsurf, Devin Desktop, Continue, Amazon Q, Ro
 
 ## Pricing
 
-$0.0068 AUD per check. No subscription. Credits never expire.
+120 free checks every day. After that, $0.0068 AUD per check. No subscription. Credits never expire.
 
 | Tier | Checks |
 |------|--------|
-| Free | 120 |
+| Free | 120 / day |
 | $5 | ~735 |
 | $10 | ~1,470 |
 | $25 | ~3,676 |
 | $50 | ~7,352 |
+
+## Bring your own key (optional)
+
+A key is minted for you automatically. If you already have a Client ID, or want the same one across machines, set it and Check uses that instead:
+
+```
+export GOL_CLIENT_ID=your_key
+```
+
+## Manage
+
+```
+npx @golproductions/check --status      Show your client ID and where Check is installed
+npx @golproductions/check --uninstall   Remove Check from every tool
+```
 
 ## Links
 
