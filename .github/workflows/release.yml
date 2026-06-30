@@ -21,6 +21,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           npm version "$VERSION" --no-git-tag-version
           sed -i "s/^const VERSION = \".*\";/const VERSION = \"$VERSION\";/" src/index.js
+          sed -i "s/^const VERSION = \".*\";/const VERSION = \"$VERSION\";/" src/mcp.js
 
       - name: Publish to npm
         run: npm publish --access public
