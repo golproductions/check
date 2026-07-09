@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+*.log
+.mcp.json
+.continue/
+.roo/
+CLAUDE.md
+node_modules/

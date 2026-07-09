@@ -1,0 +1,49 @@
+{
+  "name": "@golproductions/check",
+  "version": "3.2.14",
+  "description": "Less hallucinations. A command firewall for AI agents: validates every shell command before execution, so fabricated commands are denied before they run.",
+  "bin": {
+    "check": "dist/index.js",
+    "check-mcp": "dist/mcp.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist/",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "anti-hallucination",
+    "ai-hallucination",
+    "ai-agents",
+    "ai-coding-agent",
+    "claude-code",
+    "cursor",
+    "windsurf",
+    "gemini-cli",
+    "amazon-q",
+    "continue-dev",
+    "roo-code",
+    "mcp",
+    "model-context-protocol",
+    "ai-safety",
+    "developer-tools"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.0"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/golproductions/check.git"
+  },
+  "homepage": "https://golproductions.com/check"
+}
