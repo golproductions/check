@@ -1,6 +1,6 @@
 {
   "name": "@golproductions/check",
-  "version": "3.2.23",
+  "version": "3.2.24",
   "description": "Less hallucinations. A command firewall for AI agents: validates every shell command before execution, so fabricated commands are denied before they run.",
   "bin": {
     "check": "dist/index.js",
