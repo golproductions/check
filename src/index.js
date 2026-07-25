@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 GOL Productions. All rights reserved. Proprietary and confidential.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, createWriteStream, chmodSync, unlinkSync, rmSync } from "node:fs";
 import { spawnSync, spawn } from "node:child_process";
 import { join } from "node:path";
