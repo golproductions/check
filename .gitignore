@@ -1,3 +1,17 @@
 node_modules/
 package-lock.json
 *.log
+.npmrc
+
+# The source stays private. GitHub mirrors what npm ships, nothing more.
+#
+# npm serves five files and no source: dist/, LICENSE, README.md,
+# package.json. The repo now shows the same set, so the public record and
+# the published artifact cannot disagree.
+#
+# The tokenizer and the abstain rules already moved server-side on 26 Jul,
+# so the client holds no verdict logic worth reading. What it does hold is
+# every comment explaining WHY: the WSL trap, why { is a keyword prefix,
+# the libuv abort, the false positives that cost 270 denials. That is the
+# expensive part, and it is not distribution.
+src/
