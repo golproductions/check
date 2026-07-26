@@ -711,6 +711,49 @@ async function syntaxError(command) {
   } catch { return null; }
 }
 
+// PowerShell's own parser. Added 26 Jul.
+//
+// Until now nothing asked it. The client abstained on PowerShell and the
+// worker applied POSIX quoting to it, which is a grammar PowerShell does not
+// use. Measured over 1,864 real commands, that produced every syntax
+// disagreement Check had with this machine, in both directions:
+//
+//   @'...'@ and "C:\path\"   worker denied, PowerShell parses them fine
+//   && and ||                worker allowed, PowerShell 5.1 rejects them
+//
+// ParseInput builds an AST and does not execute. The command goes in via
+// base64 so no quoting layer can corrupt it: passing a script through -Command
+// crosses two escaping boundaries and mangles exactly the here-strings and
+// backslash paths this exists to read.
+function psSyntaxError(command) {
+  try {
+    const probe =
+      "$ErrorActionPreference='Stop';" +
+      "$src=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:GOL_PS_SRC));" +
+      "$e=$null;" +
+      "[void][System.Management.Automation.Language.Parser]::ParseInput($src,[ref]$null,[ref]$e);" +
+      "if($e -and $e.Count -gt 0){ Write-Output $e[0].Message; exit 3 }";
+    const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", probe], {
+      timeout: 6000,
+      encoding: "utf8",
+      env: { ...process.env, GOL_PS_SRC: Buffer.from(command, "utf8").toString("base64") },
+    });
+    // No PowerShell, or it never answered: abstain. Silence is not a verdict.
+    if (r.error || r.status === null) return null;
+    if (r.status === 3) return (r.stdout || "").trim().split("\n")[0] || "syntax error";
+    if (r.status === 0) return false;
+    return null;
+  } catch { return null; }
+}
+
+// Route the question to the interpreter that will run the command. Anything
+// else is a guess wearing a measurement's clothes.
+async function shellSyntaxError(command, toolName) {
+  if (toolName === "PowerShell") return psSyntaxError(command);
+  if (toolName === "Bash") return await syntaxError(command);
+  return null;   // unknown shell, no authority, no claim
+}
+
 // Hook handler (invoked by tools via stdin)
 function detect(p) {
   if (typeof p.command === "string" && !p.tool_input) return "cursor";
@@ -813,78 +856,21 @@ const SHELL_BUILTINS = new Set([
 // the line that is exactly WORD must never be probed as a binary. Strip
 // them before segmenting. Handles <<-, <<'WORD', <<"WORD"; <<< is a
 // herestring (one line, no body) and is left alone.
-function stripHeredocs(command) {
-  const lines = command.split("\n");
-  const out = [];
-  const pending = []; // heredoc bodies are consumed in the order opened
-  for (const line of lines) {
-    if (pending.length) {
-      const { delim, dashed } = pending[0];
-      const probe = dashed ? line.replace(/^\t+/, "") : line;
-      if (probe === delim) pending.shift();
-      continue;
-    }
-    out.push(line);
-    // every heredoc opened on this line queues a body (<<< is a herestring, no body)
-    for (const m of line.matchAll(/<<(-?)(?!<)\s*(?:'([^']+)'|"([^"]+)"|(\w+))/g)) {
-      pending.push({ delim: m[2] || m[3] || m[4], dashed: m[1] === "-" });
-    }
-  }
-  return out.join("\n");
-}
+// stripHeredocs, segmentBases, shellWhy, shellKnows and allBinariesExist
+// MOVED SERVER-SIDE, 26 Jul.
+//
+// Together they decided which words in a command were command words, asked
+// the shell about them, and ruled. Deciding which words matter is the only
+// genuinely hard part: a heredoc body is not a command, a loop variable is
+// not a command, `2>&1` is not a package, `[System.IO.File]` is not a binary.
+// Every branch was a scar from a real false positive, and all of it shipped
+// inside dist/index.js to anyone who ran `npm pack`.
+//
+// The worker already had a tokenizer and already ran the probe protocol. It
+// asks; this client answers. What is left below is measurement only:
+// bashPath finds the shell, PROBE_SH and PROBE_PS ask it, answerProbes
+// relays what it said. None of it forms a verdict.
 
-// Quote-aware: "./spaced name.sh" is ONE token, and connectors inside
-// quotes are literal text, not separators.
-function segmentBases(command) {
-  const segs = [[]];
-  let cur = "", q = null;
-  for (let i = 0; i < command.length; i++) {
-    const ch = command[i];
-    if (q) { if (ch === q) q = null; else cur += ch; continue; }
-    if (ch === '"' || ch === "'") { q = ch; continue; }
-    if (ch === "|" || ch === "&" || ch === ";" || ch === "\n") {
-      if (cur) { segs[segs.length - 1].push(cur); cur = ""; }
-      if (segs[segs.length - 1].length) segs.push([]);
-      if ((ch === "|" || ch === "&") && command[i + 1] === ch) i++;
-      continue;
-    }
-    if (/\s/.test(ch)) { if (cur) { segs[segs.length - 1].push(cur); cur = ""; } continue; }
-    cur += ch;
-  }
-  if (cur) segs[segs.length - 1].push(cur);
-
-  // Keywords that PREFIX a real command (`do fakecmd`, `if grep -q x f`):
-  // step over them so the command behind them still gets probed. Keywords
-  // that BEGIN pure grammar (`for f in *.js`) stay as the base and are
-  // filtered out as builtins by the caller.
-  const KEYWORD_PREFIXES = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "{"]);
-  const bases = [];
-  for (const words of segs) {
-    let base = null;
-    for (const w of words) {
-      if (!w) continue;
-      if (PREFIX_WORDS.has(w)) continue;
-      if (KEYWORD_PREFIXES.has(w)) continue;
-      if (/^[\d.]+[smhd]?$/.test(w)) continue;
-      if (w.includes("=") && !w.startsWith("-")) continue;
-      if (w.startsWith("-")) continue;
-      base = w;
-      break;
-    }
-    if (base) bases.push(base);
-  }
-  return bases;
-}
-
-// THE ROD: do not model the shell, ask it. `type` is the shell reporting
-// on itself: builtins, keywords, functions, and PATH binaries all answer
-// through the exact resolution the shell will use at launch. A model of the
-// shell can drift from the shell; the shell cannot drift from itself.
-// On Windows, bare "bash" is a trap: PATH can resolve to WSL's
-// System32\bash.exe, a different operating system with a different
-// filesystem. The command will actually run in Git Bash, so the probe
-// must ask Git Bash, located explicitly. If it cannot be located,
-// abstain, never let the wrong interpreter answer for the right one.
 function bashPath() {
   if (platform() !== "win32") return "bash";
   const candidates = [
@@ -901,79 +887,6 @@ function bashPath() {
 // deny must come from the interpreter that would have run the command, not
 // from us: deterministic (same machine, same words) and never argued with.
 // Normalized as "<name>: <the shell's phrase>", pure string ops.
-function shellWhy(raw, name) {
-  if (!raw) return null;
-  const line = raw.split(/\r?\n/).find(l => l.includes(name));
-  if (!line) return null;
-  let tail = line.slice(line.indexOf(name) + name.length);
-  tail = tail.replace(/^['"\s:]+/, "").replace(/\s+$/, "");
-  return tail ? name + ": " + tail : null;
-}
-
-function shellKnows(name, cwd, shell) {
-  try {
-    if (shell === "powershell") {
-      const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command",
-        "try { $null = Get-Command $env:CHECK_PROBE -ErrorAction Stop; exit 0 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"],
-        { cwd, timeout: 4000, encoding: "utf8", env: { ...process.env, CHECK_PROBE: name } });
-      if (r.error) return null;
-      return { known: r.status === 0, why: r.status === 0 ? null : shellWhy(r.stderr, name) };
-    }
-    const bash = bashPath();
-    if (!bash) return null;
-    const r = spawnSync(bash, ["-c", 'type -- "$1"', "check", name],
-      { cwd, timeout: 4000, encoding: "utf8" });
-    if (r.error) return null;
-    return { known: r.status === 0, why: r.status === 0 ? null : shellWhy(r.stderr, name) };
-  } catch { return null; }
-}
-
-// Tri-state ground truth from the interpreter itself: true = every command
-// word proven resolvable, false = at least one proven unresolvable, null =
-// cannot be determined without executing (subshells, expansions), abstain,
-// never guess. Per-base since 3.3.0: one noisy token (an expansion, paren
-// grammar) no longer abandons the whole command, every CLEAN base is still
-// probed, so a provably-fake word is denied locally even when it shares the
-// line with an expansion. `answers` (optional) collects every probed base's
-// verdict so the server round can be seeded with proof it did not ask for.
-function allBinariesExist(command, cwd, shell, misses, answers) {
-  try {
-    // Backslash-newline is line continuation, not a token; heredoc bodies
-    // are data, not commands. Both must vanish before segmenting.
-    let bases = segmentBases(stripHeredocs(command).replace(/\\\r?\n/g, " "));
-    if (shell !== "powershell") bases = bases.filter(b => !SHELL_BUILTINS.has(b));
-    if (bases.length === 0) return true;
-    // Probe only clean word-like names. Anything else (expansions, paren
-    // grammar, or garbage from quote structures this scanner cannot model)
-    // is "cannot determine without executing" for THAT word, abstain on it,
-    // keep probing the rest.
-    const clean = [...new Set(bases.filter(b => /^[A-Za-z0-9_.\/\\~:@+=-]+$/.test(b)))];
-    const noisy = clean.length !== new Set(bases).size;
-    let sawFalse = false, sawNull = noisy;
-    for (const b of clean) {
-      const probe = shellKnows(b, cwd, shell);
-      if (probe === null) { sawNull = true; continue; }
-      if (answers) {
-        answers.probe[b] = probe.known;
-        if (!probe.known && probe.why) answers.why[b] = probe.why;
-      }
-      if (probe.known === false) {
-        sawFalse = true;
-        if (misses) misses.push(probe.why || b + ": not found");
-      }
-    }
-    // Proven absence outranks uncertainty: one dead word kills the command.
-    if (sawFalse) return false;
-    return sawNull ? null : true;
-  } catch { return null; }
-}
-
-// PROBE PROTOCOL (3.3.0), the server names exactly the facts it cannot
-// resolve (words, "path:" filesystem referents, "gitcmd:"/"gitref:" git
-// facts) and this client asks the machine that would run the command,
-// relaying its answer verbatim. One spawn answers the whole batch. The
-// separators are control bytes (US/RS) so no real path or error text can
-// forge a record boundary.
 const PROBE_SH = `for k in "$@"; do
   r=0; w=""
   case "$k" in
@@ -1090,26 +1003,33 @@ async function main() {
       outCreditsExhausted(f, "check: no key configured, so commands are running unverified. Nothing is being blocked. Get your key at https://golproductions.com/check");
       return;
     }
-    // LOCAL SYNTAX DENY: only where the executing shell is provably bash
-    // (Claude Code's Bash tool). Elsewhere the shell is unknown, abstain.
-    if (p.tool_name === "Bash") {
-      const synErr = await syntaxError(c);
-      if (typeof synErr === "string") { out(f, false, `check: syntax error, ${synErr}`); return; }
-    }
+    // Ask the interpreter that will run this command whether it parses.
+    // Bash answers through `bash -n`, PowerShell through its own AST parser,
+    // and an unknown shell is not asked at all. The result rides to the server
+    // as syntax_ok so the worker never has to guess in a grammar it cannot run.
+    const synErr = await shellSyntaxError(c, p.tool_name);
+    if (typeof synErr === "string") { out(f, false, `check: syntax error, ${synErr}`); return; }
+    const syntaxOk = synErr === false ? 1 : synErr === null ? undefined : 0;
     const shell = p.tool_name === "PowerShell" ? "powershell" : "bash";
-    // Ask the same interpreter that will run the command.
-    const misses = [];
-    const localAnswers = { probe: {}, why: {} };
-    const exists = allBinariesExist(c, p.cwd, shell, misses, localAnswers);
-    // LOCAL FAST DENY: the shell just proved a command word does not resolve.
-    // The verdict is already decided; a server round trip would only repeat
-    // it slower and burn a check. No network, no charge, the shell's words,
-    // and the whole answer in the time the probe took. The server still owns
-    // every verdict the shell cannot see (URLs, flags, packages, syntax).
-    if (exists === false && misses.length) {
-      out(f, false, "denied by the shell that would run it. " + misses.join("; "));
-      return;
-    }
+
+    // LOCAL FAST DENY: REMOVED 26 Jul, with the local scan that fed it.
+    //
+    // This client used to decide which words in a command were command words,
+    // ask the shell about them, and rule. Deciding which words matter is the
+    // one genuinely hard thing here: heredoc bodies are not commands, loop
+    // variables are not commands, `2>&1` is not a package, a PowerShell type
+    // literal is not a binary. Every branch of that logic is a scar from a
+    // real false positive, and all of it shipped inside dist/index.js to
+    // anyone who ran `npm pack`.
+    //
+    // It moves to the server, which already has a tokenizer and already runs
+    // the probe protocol. The client keeps exactly one job: answer the
+    // questions it is asked, verbatim, about a machine only it can see.
+    //
+    // The cost is honest. A denial used to be local and instant; it is now a
+    // round trip. Denials are 1 to 3 percent of real traffic and allows
+    // already paid that trip, so the average barely moves, and offline Check
+    // now has no opinion at all, which is what fail-open means anyway.
     // Send only what the verdict needs. No transcript paths, no usernames
     // beyond what cwd itself carries, the check is about the command.
     // probe_ok / path_ok / git_ok declare the full probe protocol: the server
@@ -1122,7 +1042,11 @@ async function main() {
       command: c, cwd: p.cwd || process.cwd(), platform: f, channel: "npm",
       tool_name: p.tool_name, v: VERSION, probe_ok: 1, path_ok: 1, git_ok: 1,
     };
-    if (exists !== null) body.binary_exists = exists;
+    // binary_exists is gone with the local scan. It was this client's summary
+    // judgment of a question the server is better placed to ask precisely.
+    // The executing shell's own parse verdict. Absent when no shell could be
+    // asked, and the server abstains on syntax rather than inventing a grammar.
+    if (syntaxOk !== undefined) body.syntax_ok = syntaxOk;
     const post = (payload, signal) => fetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-GOL-CLIENT-ID": hookKey, "User-Agent": "c/" + VERSION },
@@ -1141,10 +1065,11 @@ async function main() {
     // from that scan, no second spawn for them. A probe round is free on the
     // server side; only the verdict call bills.
     if (res.ok && d.verdict === "probe" && Array.isArray(d.probe)) {
-      const unanswered = d.probe.filter(k => !(k in localAnswers.probe));
-      const asked = await answerProbes(unanswered, p.cwd, shell);
-      const probeAns = { ...localAnswers.probe, ...asked.probe };
-      const probeWhy = { ...localAnswers.why, ...asked.why };
+      // Every key the server named, answered by the machine. No pre-filtering,
+      // no local cache of a scan this client no longer performs.
+      const asked = await answerProbes(d.probe, p.cwd, shell);
+      const probeAns = asked.probe;
+      const probeWhy = asked.why;
       const answered = {};
       const answeredWhy = {};
       for (const k of d.probe) {
@@ -1199,11 +1124,10 @@ async function main() {
 
     if (d.verdict === "runnable") { out(f, true); }
     else {
-      // Prefer the shell's own words: when the interpreter that would run
-      // this command already said why it can't, that sentence is the reason.
-      // Server reason covers everything the shell can't see (URLs, syntax).
-      const local = misses.length ? "denied by the shell that would run it. " + misses.join("; ") : null;
-      out(f, false, local || d.reason || "denied. Address the issue before continuing.");
+      // One author for every reason. The shell's own words still reach the
+      // agent, but they arrive through probe_why and the server composes the
+      // sentence. This client no longer has a reason of its own to prefer.
+      out(f, false, d.reason || "denied. Address the issue before continuing.");
     }
   } catch {
     // Network failure or timeout: fail OPEN. An unreachable validation
