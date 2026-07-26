@@ -67,26 +67,31 @@ if (existsSync(dist)) {
 // reads as silence.
 const distMcp = join(ROOT, "dist", "mcp.js");
 if (existsSync(distMcp)) {
-  const announced = await new Promise((resolve) => {
+  const res = await new Promise((resolve) => {
     const child = spawn(process.execPath, [distMcp], { stdio: ["pipe", "pipe", "pipe"] });
-    let out = "";
+    let out = "", err = "";
     let settled = false;
     const finish = (v) => { if (settled) return; settled = true; clearTimeout(timer); try { child.kill(); } catch {} resolve(v); };
-    const timer = setTimeout(() => finish(null), 25000);
+    const timer = setTimeout(() => finish({ v: null, why: "timed out after 25s" }), 25000);
     child.stdout.on("data", (d) => {
       out += d;
       const m = out.match(/"serverInfo"\s*:\s*\{[^}]*"version"\s*:\s*"([^"]+)"/);
-      if (m) finish(m[1]);
+      if (m) finish({ v: m[1] });
     });
-    child.on("error", () => finish(null));
-    child.on("close", () => finish(null));
+    child.stderr.on("data", (d) => { err += d; });
+    child.on("error", (e) => finish({ v: null, why: "spawn failed: " + e.message }));
+    child.on("close", (code) => finish({
+      v: null,
+      why: "exited " + code + (err ? "; stderr: " + err.trim().split("\n").slice(0, 3).join(" | ").slice(0, 300) : "; no stderr") +
+           (out ? "; stdout: " + out.slice(0, 120) : "; no stdout"),
+    }));
     child.stdin.write(JSON.stringify({
       jsonrpc: "2.0", id: 1, method: "initialize",
       params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "version-lock", version: "1" } },
     }) + "\n");
   });
-  ok("dist/mcp.js announces v" + want + " on the wire", announced === want,
-     announced ? "announced " + announced : "no serverInfo.version in the reply");
+  ok("dist/mcp.js announces v" + want + " on the wire", res.v === want,
+     res.v ? "announced " + res.v : res.why);
 } else console.log("SKIP  dist/mcp.js not built");
 
 console.log("");
