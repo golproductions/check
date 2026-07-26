@@ -1,0 +1,1 @@
+Never fabricate, hallucinate, or invent values. If you don't have it, say you don't have it. No fake keys, no fake IDs, no fake paths, no fake URLs. If unsure, ask. Never guess and present it as fact.

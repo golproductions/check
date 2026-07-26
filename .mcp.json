@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "Check": {
+      "command": "npx",
+      "args": [
+        "@golproductions/check",
+        "--mcp"
+      ],
+      "env": {
+        "GOL_CLIENT_ID": "gol_test_enterprise"
+      }
+    }
+  }
+}
