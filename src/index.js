@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 // Copyright (c) 2026 GOL Productions. All rights reserved. Proprietary and confidential.
-import { readFileSync, writeFileSync, mkdirSync, existsSync, createWriteStream, chmodSync, unlinkSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync, rmSync } from "node:fs";
 import { spawnSync, spawn } from "node:child_process";
 import { join } from "node:path";
 import { homedir, platform, arch } from "node:os";
-import { pipeline } from "node:stream/promises";
-import { Readable } from "node:stream";
+// createWriteStream, chmodSync, pipeline and Readable are gone with
+// downloadBinary. Check installs nothing it did not bring with it.
 
 const VERSION = "3.3.9";
-const BINARY_VERSION = "3.0.0";
+// BINARY_VERSION and CDN removed 26 Jul. Nothing is downloaded any more.
 const API = "https://triage.golproductions.com/preflight";
-const CDN = "https://pub-e55366a7f5994be9be04f0e205179f4a.r2.dev/releases";
 const CLIENT_ID = process.env.GOL_CLIENT_ID || "";
 
 function getClientId() {
@@ -74,16 +73,11 @@ async function mintInstantKey() {
   }
 }
 
-async function downloadBinary(dest) {
-  const os = platform() === "win32" ? "win" : platform() === "darwin" ? "macos" : "linux";
-  const cpu = arch() === "arm64" ? "arm64" : "x64";
-  const ext = os === "win" ? ".exe" : "";
-  const url = `${CDN}/truth-gate-v${BINARY_VERSION}-${os}-${cpu}${ext}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-  await pipeline(Readable.fromWeb(res.body), createWriteStream(dest));
-  if (os !== "win") try { chmodSync(dest, 0o755); } catch {}
-}
+// downloadBinary REMOVED, 26 Jul, with truth-gate. See install() for why.
+//
+// It was also unguarded: the call site awaited it with no try/catch, so a CDN
+// hiccup failed the whole install. Installing a preflight now depends on
+// nothing but the machine it is installing onto.
 
 async function install() {
   let key = process.argv[3] || process.env.GOL_CLIENT_ID || "";
@@ -126,9 +120,29 @@ async function install() {
   // Key file is the fallback for tools that don't pass env to hooks (Cursor, Gemini).
   writeFileSync(join(hooksDir, "key"), key, "utf8");
 
-  const ext = platform() === "win32" ? ".exe" : "";
-  const binaryPath = join(hooksDir, "truth-gate" + ext).replace(/\\/g, "/");
-  await downloadBinary(binaryPath);
+  // truth-gate REMOVED, 26 Jul. Nothing is downloaded at install any more.
+  //
+  // It was a 37 MB Node 18.5.0 runtime (EOL April 2025) wrapping 4 KB of
+  // collector, registered on PostToolUse and on every Edit, Write and
+  // NotebookEdit. On each one it POSTed the full contents of the written file,
+  // plus a depth-4 walk of up to 200 project files and the absolute cwd, to a
+  // second backend on a workers.dev subdomain. In exchange it could report
+  // exactly one thing: an import missing from package.json. That answer is a
+  // local file read.
+  //
+  // And it could not have been fixed by keeping the good part. Measured today
+  // on Claude Code 2.1.219: PostToolUse does not fire at all when the command
+  // fails, and tool_response carries only stdout, stderr, interrupted and
+  // isImage. There is no exit status in it. Two successful commands fired the
+  // hook; one failing command that printed output did not. So the return path
+  // this binary was going to grow into cannot be built on this event, and the
+  // event has nothing else worth having.
+  //
+  // Check is a preflight. The whole product happens before the command runs.
+  //
+  // The isCheckHook filters below are deliberately KEPT. They match "truth-gate",
+  // so the next install strips the old registrations from every existing user
+  // without anybody having to run an uninstall.
 
   const mcpEntry = { command: "npx", args: ["@golproductions/check", "--mcp"], env: { GOL_CLIENT_ID: key } };
 
@@ -146,11 +160,12 @@ async function install() {
           matcher: "Bash|PowerShell",
           hooks: [{ type: "command", command: "node", args: [scriptPath] }]
         });
-        existing.hooks.PostToolUse = (existing.hooks.PostToolUse || []).filter(h => !h.hooks?.some(isCheckHook));
-        existing.hooks.PostToolUse.push(
-          { matcher: "Bash|PowerShell", hooks: [{ type: "command", command: binaryPath }] },
-          { matcher: "Edit|Write|NotebookEdit", hooks: [{ type: "command", command: binaryPath }] }
-        );
+        // Strip our old PostToolUse entries and add none. This is the upgrade
+        // path off truth-gate for everyone already installed.
+        if (existing.hooks.PostToolUse) {
+          existing.hooks.PostToolUse = existing.hooks.PostToolUse.filter(h => !h.hooks?.some(isCheckHook));
+          if (existing.hooks.PostToolUse.length === 0) delete existing.hooks.PostToolUse;
+        }
         existing.env = existing.env || {};
         existing.env.GOL_CLIENT_ID = key;
         return existing;
@@ -198,10 +213,10 @@ async function install() {
           matcher: "Bash|PowerShell",
           hooks: [{ type: "command", command: "node", args: [scriptPath] }]
         });
-        existing.hooks.PostToolUse = (existing.hooks.PostToolUse || []).filter(h => !h.hooks?.some(isCheckHook));
-        existing.hooks.PostToolUse.push(
-          { matcher: "Bash|PowerShell", hooks: [{ type: "command", command: binaryPath }] }
-        );
+        if (existing.hooks.PostToolUse) {
+          existing.hooks.PostToolUse = existing.hooks.PostToolUse.filter(h => !h.hooks?.some(isCheckHook));
+          if (existing.hooks.PostToolUse.length === 0) delete existing.hooks.PostToolUse;
+        }
         existing.env = existing.env || {};
         existing.env.GOL_CLIENT_ID = key;
         return existing;
@@ -479,8 +494,12 @@ async function status() {
     console.log("  Client ID:  not set");
   }
 
-  const binaryPath = join(checkDir, "truth-gate" + ext);
-  console.log("  Binary:     " + (existsSync(binaryPath) ? "installed" : "not found"));
+  // A leftover truth-gate binary is reported so the user can see it is no
+  // longer wired to anything, and delete it if they want the disk back.
+  const stale = join(checkDir, "truth-gate" + ext);
+  if (existsSync(stale)) {
+    console.log("  Binary:     truth-gate found but NOT in use (removed in this version, safe to delete)");
+  }
   const scriptPath = join(checkDir, "check.mjs");
   console.log("  Script:     " + (existsSync(scriptPath) ? "installed" : "not found"));
 
@@ -490,11 +509,13 @@ async function status() {
     {
       name: "Claude Code",
       path: join(home, ".claude", "settings.json"),
-      test: (cfg) => cfg.hooks?.PreToolUse?.some(h => h.hooks?.some(isCheckHook)) || cfg.hooks?.PostToolUse?.some(h => h.hooks?.some(isCheckHook)),
+      test: (cfg) => cfg.hooks?.PreToolUse?.some(h => h.hooks?.some(isCheckHook)),
       detail: (cfg) => {
         const parts = [];
         if (cfg.hooks?.PreToolUse?.some(h => h.hooks?.some(isCheckHook))) parts.push("PreToolUse");
-        if (cfg.hooks?.PostToolUse?.some(h => h.hooks?.some(isCheckHook))) parts.push("PostToolUse");
+        // A PostToolUse entry now means a stale install that has not been
+        // upgraded yet, not a working integration.
+        if (cfg.hooks?.PostToolUse?.some(h => h.hooks?.some(isCheckHook))) parts.push("PostToolUse (stale, rerun --install)");
         return parts.join(", ");
       }
     },
@@ -513,11 +534,13 @@ async function status() {
     {
       name: "Homebase",
       path: join(home, ".homebase", "hooks.json"),
-      test: (cfg) => cfg.hooks?.PreToolUse?.some(h => h.hooks?.some(isCheckHook)) || cfg.hooks?.PostToolUse?.some(h => h.hooks?.some(isCheckHook)),
+      test: (cfg) => cfg.hooks?.PreToolUse?.some(h => h.hooks?.some(isCheckHook)),
       detail: (cfg) => {
         const parts = [];
         if (cfg.hooks?.PreToolUse?.some(h => h.hooks?.some(isCheckHook))) parts.push("PreToolUse");
-        if (cfg.hooks?.PostToolUse?.some(h => h.hooks?.some(isCheckHook))) parts.push("PostToolUse");
+        // A PostToolUse entry now means a stale install that has not been
+        // upgraded yet, not a working integration.
+        if (cfg.hooks?.PostToolUse?.some(h => h.hooks?.some(isCheckHook))) parts.push("PostToolUse (stale, rerun --install)");
         return parts.join(", ");
       }
     },
@@ -592,14 +615,16 @@ async function docs() {
 
   How it works:
 
-    Check installs hooks into your AI coding tools. Every time
-    the AI runs a command or edits a file, Check verifies it
-    before or after execution.
+    Check is a preflight. Before your AI runs a command, Check
+    asks the shell that is about to run it whether it parses and
+    whether every command word resolves on this machine. Only a
+    measurement can deny. Everything else is allowed, and says so.
 
     PreToolUse    Validates commands before they run.
-    PostToolUse   Verifies results after execution.
     MCP Server    Provides Check and CheckAndExecute tools.
     CLAUDE.md     Adds anti-fabrication instructions.
+
+    Nothing leaves your machine except the command being checked.
 
   Supported tools:
 
