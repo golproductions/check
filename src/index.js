@@ -7,7 +7,7 @@ import { homedir, platform, arch } from "node:os";
 // createWriteStream, chmodSync, pipeline and Readable are gone with
 // downloadBinary. Check installs nothing it did not bring with it.
 
-const VERSION = "3.4.0";
+const VERSION = "3.4.1";
 // BINARY_VERSION and CDN removed 26 Jul. Nothing is downloaded any more.
 const API = "https://triage.golproductions.com/preflight";
 const CLIENT_ID = process.env.GOL_CLIENT_ID || "";

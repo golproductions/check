@@ -9,7 +9,7 @@ import { platform } from "node:os";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const VERSION = "3.3.9";
+const VERSION = "3.4.1";
 const API = "https://triage.golproductions.com/preflight";
 const CLIENT_ID = process.env.GOL_CLIENT_ID;
 const IS_WIN = process.platform === "win32";
