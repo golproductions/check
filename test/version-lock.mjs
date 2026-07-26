@@ -14,7 +14,7 @@
 //   node test/version-lock.mjs
 
 import { readFileSync, existsSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawnSync, spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -55,16 +55,38 @@ if (existsSync(dist)) {
      (out.match(/Check v[\d.]+/) || ["no version line"])[0]);
 } else console.log("SKIP  dist/index.js not built");
 
+// The MCP server, asked over a real handshake and given time to answer.
+//
+// This used to use spawnSync with `input`, which writes the request and closes
+// stdin in the same breath. Locally the server won that race every time. In CI
+// it did not, and the test reported "no serverInfo.version in the reply" for a
+// server that was perfectly correct. A test that depends on winning a race
+// fails on a slower machine and teaches you to distrust a red X.
+//
+// Now: spawn, write, wait for the reply, then close. Only a genuine silence
+// reads as silence.
 const distMcp = join(ROOT, "dist", "mcp.js");
 if (existsSync(distMcp)) {
-  const init = JSON.stringify({
-    jsonrpc: "2.0", id: 1, method: "initialize",
-    params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "version-lock", version: "1" } },
-  }) + "\n";
-  const r = spawnSync(process.execPath, [distMcp], { input: init, encoding: "utf8", timeout: 20000 });
-  const m = (r.stdout || "").match(/"version"\s*:\s*"([^"]+)"/);
-  ok("dist/mcp.js announces v" + want + " on the wire", m && m[1] === want,
-     m ? "announced " + m[1] : "no serverInfo.version in the reply");
+  const announced = await new Promise((resolve) => {
+    const child = spawn(process.execPath, [distMcp], { stdio: ["pipe", "pipe", "pipe"] });
+    let out = "";
+    let settled = false;
+    const finish = (v) => { if (settled) return; settled = true; clearTimeout(timer); try { child.kill(); } catch {} resolve(v); };
+    const timer = setTimeout(() => finish(null), 25000);
+    child.stdout.on("data", (d) => {
+      out += d;
+      const m = out.match(/"serverInfo"\s*:\s*\{[^}]*"version"\s*:\s*"([^"]+)"/);
+      if (m) finish(m[1]);
+    });
+    child.on("error", () => finish(null));
+    child.on("close", () => finish(null));
+    child.stdin.write(JSON.stringify({
+      jsonrpc: "2.0", id: 1, method: "initialize",
+      params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "version-lock", version: "1" } },
+    }) + "\n");
+  });
+  ok("dist/mcp.js announces v" + want + " on the wire", announced === want,
+     announced ? "announced " + announced : "no serverInfo.version in the reply");
 } else console.log("SKIP  dist/mcp.js not built");
 
 console.log("");
