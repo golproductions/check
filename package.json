@@ -1,17 +1,21 @@
 {
   "name": "@golproductions/check",
-  "version": "3.1.4",
-  "description": "The universal anti-hallucination engine for AI coding agents. Catches what is not real before it reaches your project.",
+  "version": "3.4.0",
+  "description": "Less hallucinations. A command firewall for AI agents: validates every shell command before execution, so fabricated commands are denied before they run.",
   "bin": {
-    "check": "src/index.js",
-    "check-mcp": "src/mcp.js"
+    "check": "dist/index.js",
+    "check-mcp": "dist/mcp.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
   },
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "files": [
-    "src/",
+    "dist/",
     "LICENSE",
     "README.md"
   ],
