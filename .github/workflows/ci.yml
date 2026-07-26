@@ -45,7 +45,13 @@ jobs:
           node dist/index.js --status | grep -q "Check v$WANT"
           echo "CLI reports v$WANT"
 
+      # The MCP server refuses to start without a key, correctly: it is a paid
+      # preflight, not a demo. The initialize handshake is answered locally and
+      # never reaches the API, so any non-empty string gets us the version.
+      # Without this, CI failed with "exited 1" and read like a broken build.
       - name: The MCP server announces that version over the wire
+        env:
+          GOL_CLIENT_ID: ci-version-check-not-a-real-key
         run: node test/version-lock.mjs
 
       - name: The upgrade path off truth-gate still holds
