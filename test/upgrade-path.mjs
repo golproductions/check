@@ -49,25 +49,29 @@ const isCheckHook = (hook) => {
   return false;
 };
 
-// The matcher must survive, or no existing user is ever cleaned.
+// The matcher must survive the build, or no existing user is ever cleaned.
 //
-// This cannot be checked by reading bytes. The obfuscator RC4-encodes every
-// string literal, so "truth-gate" does not appear anywhere in dist/index.js
-// and a grep reports it missing from an artifact that handles it correctly.
-// Twice today a text search lied about a working build.
+// Only checkable where the source is. Two attempts to check it against the
+// artifact both failed, for different and instructive reasons:
 //
-// So ask the artifact. `--status` reports a leftover binary by name, which it
-// can only do if the string and the comparison both survived the build.
-if (FOUND.endsWith("index.js") && FOUND.includes("dist")) {
-  const r = spawnSync(process.execPath, [FOUND, "--status"], { encoding: "utf8", timeout: 25000 });
-  const out = (r.stdout || "") + (r.stderr || "");
-  ok("the shipped artifact still recognises truth-gate",
-     /truth-gate/i.test(out),
-     "--status never mentioned it, so the matcher did not survive the build");
-} else {
+//   grep "truth-gate" dist/index.js   -> 0 hits. Obfuscation RC4-encodes
+//                                        string literals. The string is
+//                                        there; the bytes do not spell it.
+//   node dist/index.js --status       -> only names truth-gate if a leftover
+//                                        binary EXISTS on that machine. It
+//                                        passed here and failed on a clean
+//                                        runner, so it was measuring my disk,
+//                                        not the build.
+//
+// A test that passes for an environmental reason is worse than no test. The
+// honest scope is: assert it where it can be asserted, and say plainly that
+// the mirror cannot.
+if (FOUND.includes("src")) {
   ok("source still defines the truth-gate matcher",
      src.includes('includes("truth-gate")'),
      "without it, no existing user is ever cleaned");
+} else {
+  console.log("SKIP  truth-gate matcher: not observable from the artifact alone");
 }
 
 // ── a config exactly as a current user has it ────────────────────────────────
