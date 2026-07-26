@@ -93,11 +93,11 @@ Thin wrappers over this same API exist on the [VS Code Marketplace](https://mark
 
 ## Links
 
-[Product](https://www.golproductions.com/check.html) · [Pricing](https://www.golproductions.com/pricing.html) · [Console](https://www.golproductions.com/console.html) · [Updates](https://www.golproductions.com/updates.html) · [Blog](https://www.golproductions.com/blog/)
+[Product](https://golproductions.com/check) · [Pricing](https://golproductions.com/pricing) · [Console](https://www.golproductions.com/console.html) · [Updates](https://www.golproductions.com/updates.html)
 
 ## Terms
 
-By installing or using Check you agree to the [Terms of Service](https://www.golproductions.com/terms.html) and [Privacy Policy](https://www.golproductions.com/privacy.html). The service is provided as is; see the Terms for the full picture, including your Australian Consumer Law rights.
+By installing or using Check you agree to the [Terms of Service](https://golproductions.com/terms) and [Privacy Policy](https://golproductions.com/privacy). The service is provided as is; see the Terms for the full picture, including your Australian Consumer Law rights.
 
 ## License
 
