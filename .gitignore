@@ -15,3 +15,15 @@ package-lock.json
 # the libuv abort, the false positives that cost 270 denials. That is the
 # expensive part, and it is not distribution.
 src/
+
+# Sync-tool conflict copies. Never commit these.
+#
+# A file sync has been writing "(2)" duplicates through this whole tree,
+# including 106 copies of git's own internals and a branch literally named
+# "main (2)" that corrupted the repo. Two of them, ci (2).yml and
+# release (2).yml, were committed and RAN in GitHub Actions: CI kept failing
+# on the old workflow while the fixed one passed beside it.
+*" (2)"*
+*" (3)"*
+*(2).*
+*(3).*
