@@ -8,7 +8,9 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "prepublishOnly": "node build.mjs"
+    "release": "node release.mjs",
+    "prepublishOnly": "node build.mjs && node test/version-lock.mjs && node test/upgrade-path.mjs",
+    "verify": "node test/shipped-truth.mjs"
   },
   "type": "module",
   "engines": {
