@@ -12,12 +12,27 @@
 //
 //   node test/upgrade-path.mjs
 
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "index.js");
-const src = readFileSync(SRC, "utf8");
+// Read the source where it exists, the shipped artifact where it does not.
+//
+// src/ is private and absent from the public mirror, so on CI this reads
+// dist/, which is the better target anyway: dist/ is what users install, and
+// checking the source proves nothing about what was published.
+//
+// Not every assertion survives that switch. Obfuscation RC4-encodes string
+// literals, so a grep for "truth-gate" comes back empty from an artifact that
+// handles it correctly. Where a text search would lie, the check below runs
+// the artifact and asks it instead.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const CANDIDATES = [join(ROOT, "src", "index.js"), join(ROOT, "dist", "index.js")];
+const FOUND = CANDIDATES.find(existsSync);
+if (!FOUND) { console.error("upgrade-path: neither src/index.js nor dist/index.js is present"); process.exit(1); }
+console.log("reading " + FOUND.slice(ROOT.length + 1) + "\n");
+const src = readFileSync(FOUND, "utf8");
 
 let fail = 0, total = 0;
 const ok = (label, cond, detail) => {
@@ -34,9 +49,26 @@ const isCheckHook = (hook) => {
   return false;
 };
 
-ok("source still defines the truth-gate matcher",
-   src.includes('includes("truth-gate")'),
-   "without it, no existing user is ever cleaned");
+// The matcher must survive, or no existing user is ever cleaned.
+//
+// This cannot be checked by reading bytes. The obfuscator RC4-encodes every
+// string literal, so "truth-gate" does not appear anywhere in dist/index.js
+// and a grep reports it missing from an artifact that handles it correctly.
+// Twice today a text search lied about a working build.
+//
+// So ask the artifact. `--status` reports a leftover binary by name, which it
+// can only do if the string and the comparison both survived the build.
+if (FOUND.endsWith("index.js") && FOUND.includes("dist")) {
+  const r = spawnSync(process.execPath, [FOUND, "--status"], { encoding: "utf8", timeout: 25000 });
+  const out = (r.stdout || "") + (r.stderr || "");
+  ok("the shipped artifact still recognises truth-gate",
+     /truth-gate/i.test(out),
+     "--status never mentioned it, so the matcher did not survive the build");
+} else {
+  ok("source still defines the truth-gate matcher",
+     src.includes('includes("truth-gate")'),
+     "without it, no existing user is ever cleaned");
+}
 
 // ── a config exactly as a current user has it ────────────────────────────────
 const before = {
