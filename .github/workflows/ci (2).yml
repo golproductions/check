@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Boot gate (syntax check)
+        run: |
+          node --check src/index.js
+          node --check src/mcp.js
+
+      - name: Smoke test (CLI runs and prints version)
+        run: node src/index.js --help | grep -q "Check v"

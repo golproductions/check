@@ -1,11 +1,22 @@
 name: CI
 
+# This repo is a MIRROR of what npm publishes, not a build source.
+#
+# src/ is private, so nothing here can compile the product. What CI can do,
+# and the only thing worth doing, is check that the artifact in dist/ is
+# internally consistent and matches package.json. Both times the version
+# drifted, the source was fine and the ARTIFACT was wrong, so the artifact is
+# the right thing to test.
+#
+# Releases happen from the machine that holds src/, gated by prepublishOnly
+# (build, version-lock, upgrade-path).
+
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  mirror-is-honest:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,13 +28,29 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Boot gate (syntax check)
+      - name: The shipped artifact parses
         run: |
-          node --check src/index.js
-          node --check src/mcp.js
+          node --check dist/index.js
+          node --check dist/mcp.js
 
-      - name: Smoke test (CLI runs and prints version)
-        run: node src/index.js --help | grep -q "Check v"
+      - name: The CLI reports the version package.json declares
+        run: |
+          WANT=$(node -p "require('./package.json').version")
+          node dist/index.js --status | grep -q "Check v$WANT"
+          echo "CLI reports v$WANT"
+
+      - name: The MCP server announces that version over the wire
+        run: node test/version-lock.mjs
+
+      - name: The upgrade path off truth-gate still holds
+        run: node test/upgrade-path.mjs
+
+      - name: dist carries the copyright
+        run: |
+          head -c 400 dist/index.js | grep -q "GOL Productions"
+          head -c 400 dist/mcp.js   | grep -q "GOL Productions"
+
+      - name: No source leaked into the mirror
+        run: |
+          if [ -d src ]; then echo "src/ is present in the public mirror"; exit 1; fi
+          echo "src/ is absent, as intended"

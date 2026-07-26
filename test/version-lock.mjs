@@ -32,10 +32,14 @@ const ok = (label, cond, detail) => {
 
 console.log("package.json declares " + want + "\n");
 
-// ── sources ──────────────────────────────────────────────────────────────────
+// ── sources, when present ────────────────────────────────────────────────────
+// src/ is private and absent from the public mirror, so a missing source file
+// is expected there and is not a failure. When it IS present, as on the
+// machine that builds, it must agree. The artifact checks below are the ones
+// that always run, because the artifact is what shipped both times this broke.
 for (const f of ["src/index.js", "src/mcp.js"]) {
   const p = join(ROOT, f);
-  if (!existsSync(p)) { ok(f + " exists", false); continue; }
+  if (!existsSync(p)) { console.log("SKIP  " + f + " not present (private source)"); continue; }
   const m = readFileSync(p, "utf8").match(/const VERSION = "([^"]+)"/);
   ok(f + " VERSION === " + want, m && m[1] === want, m ? "found " + m[1] : "no VERSION const");
 }
