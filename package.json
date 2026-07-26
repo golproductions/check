@@ -1,6 +1,6 @@
 {
   "name": "@golproductions/check",
-  "version": "3.4.2",
+  "version": "3.4.3",
   "description": "Less hallucinations. A command firewall for AI agents: validates every shell command before execution, so fabricated commands are denied before they run.",
   "bin": {
     "check": "dist/index.js",
@@ -9,8 +9,9 @@
   "scripts": {
     "build": "node build.mjs",
     "release": "node release.mjs",
-    "prepublishOnly": "node build.mjs && node test/version-lock.mjs && node test/upgrade-path.mjs",
-    "verify": "node test/shipped-truth.mjs"
+    "prepublishOnly": "node build.mjs && node test/version-lock.mjs && node test/upgrade-path.mjs && node test/mcp-flag.mjs",
+    "verify": "node test/shipped-truth.mjs",
+    "test:install": "node test/install-e2e.mjs"
   },
   "type": "module",
   "engines": {
