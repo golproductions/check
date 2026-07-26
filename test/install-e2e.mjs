@@ -138,7 +138,49 @@ if (rule) {
   ok("the rule says what it should", /Never fabricate/i.test(readFileSync(rule, "utf8")));
 }
 
+// ── 6. the FREE path, which is the one the website leads with ────────────────
+// Everything above passes a key. The site's headline install has no key in it:
+//
+//     npx @golproductions/check --install
+//
+// which mints a free client ID first and then validates it, so it makes two
+// fetches where the keyed path makes one. That difference crashed it. On
+// Node 24 / Windows, force-exiting after more than one fetch aborts:
+//
+//     Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), src\win\async.c
+//
+// The install completed, printed every success line, and exited non-zero. Any
+// CI step or `&&` chain saw a failed install. It survived because every test
+// here supplied a key, so the free path, the one most users take, was the only
+// one never measured.
+const FREE = mkdtempSync(join(tmpdir(), "check-install-free-"));
+for (const d of [".claude", ".gemini", ".cursor"]) mkdirSync(join(FREE, d), { recursive: true });
+const freeEnv = { ...process.env, HOME: FREE, USERPROFILE: FREE };
+delete freeEnv.GOL_CLIENT_ID;
+
+const free = spawnSync(process.execPath, [ENTRY, "--install"], {
+  env: freeEnv, cwd: FREE, encoding: "utf8", timeout: 120000,
+});
+const freeErr = free.stderr || "";
+ok("keyless --install exits 0", free.status === 0,
+   "exit " + free.status + "; stderr: " + freeErr.trim().slice(0, 180));
+ok("keyless --install does not abort the runtime", !/Assertion failed/i.test(freeErr), freeErr.trim().slice(0, 180));
+ok("keyless --install mints a free key", existsSync(join(FREE, ".check", "key")),
+   "no ~/.check/key written");
+// A CLI invocation must not fall through into the hook path. It did, the moment
+// the process.exit() calls came out: every command printed its real output and
+// then "check: no hook input on stdin" underneath it.
+ok("no CLI command falls through to the hook", !/no hook input on stdin/i.test(freeErr), freeErr.trim().slice(0, 180));
+
+for (const flag of ["--status", "--credits", "--help", "--docs"]) {
+  const r = spawnSync(process.execPath, [ENTRY, flag], { env, cwd: HOME, encoding: "utf8", timeout: 60000, input: "" });
+  ok(flag + " exits 0 and stays out of the hook path",
+     r.status === 0 && !/no hook input on stdin|Assertion failed/i.test(r.stderr || ""),
+     "exit " + r.status + "; stderr: " + (r.stderr || "").trim().slice(0, 140));
+}
+
 // ── clean up ─────────────────────────────────────────────────────────────────
+try { rmSync(FREE, { recursive: true, force: true }); } catch {}
 try { rmSync(HOME, { recursive: true, force: true }); } catch {}
 
 console.log("");

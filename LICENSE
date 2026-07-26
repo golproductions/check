@@ -1,6 +1,7 @@
 GOL Productions Proprietary License
 
-Copyright (c) 2026 GOL Productions. All rights reserved.
+Copyright (c) 2026 GOL Productions (https://golproductions.com).
+All rights reserved.
 
 This software is the proprietary product of GOL Productions
 ("GOL"). It is licensed, not sold.
@@ -8,6 +9,10 @@ This software is the proprietary product of GOL Productions
 GRANT OF LICENSE. GOL grants you a limited, non-exclusive,
 non-transferable, revocable licence to use this software
 exclusively with GOL's Check API service.
+
+YOUR CODE IS YOURS. GOL claims no ownership of, and no rights in,
+the commands, code, or projects you check. Command content is
+processed in memory and discarded when the verdict returns.
 
 RESTRICTIONS. You may not:
   1. Copy, modify, or create derivative works of this software.
@@ -20,8 +25,23 @@ RESTRICTIONS. You may not:
 TERMINATION. This licence terminates immediately if you breach
 any of its terms or if GOL revokes it at its discretion.
 
-DISCLAIMER. THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY
-OF ANY KIND. GOL DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED.
+DISCLAIMER. To the maximum extent permitted by law, this software
+is provided "as is" and "as available", without warranty of any
+kind, and GOL does not warrant that it will detect every error or
+that its results are complete or fit for any particular purpose.
 
-GOVERNING LAW. This licence is governed by the laws of the
-State of Victoria, Australia.
+AUSTRALIAN CONSUMER LAW. Nothing in this licence excludes,
+restricts or modifies any guarantee, right or remedy you have
+under the Australian Consumer Law or any other law that cannot
+lawfully be excluded. Our goods and services come with guarantees
+that cannot be excluded under the Australian Consumer Law. Where a
+consumer guarantee applies and cannot be excluded, GOL's liability
+is limited, at GOL's election, to resupplying the service or
+paying the cost of having it resupplied. Nothing above limits
+liability that cannot lawfully be limited.
+
+GOVERNING LAW. This licence is governed by the laws of Western
+Australia, and is subject to the Terms of Service at
+https://golproductions.com/terms
+
+Questions: support@golproductions.com
