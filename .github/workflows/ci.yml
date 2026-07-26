@@ -28,6 +28,12 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      # dist/mcp.js imports @modelcontextprotocol/sdk and zod at runtime, so it
+      # cannot answer an MCP handshake without them. Removing this step is what
+      # broke the first attempt at this workflow.
+      - name: Install runtime dependencies
+        run: npm install --no-audit --no-fund
+
       - name: The shipped artifact parses
         run: |
           node --check dist/index.js
