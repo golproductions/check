@@ -2,6 +2,8 @@ node_modules/
 package-lock.json
 *.log
 .npmrc
+preflight.key
+src/index.js.tmp
 
 # The source stays private. GitHub mirrors what npm ships, nothing more.
 #

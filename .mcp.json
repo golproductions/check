@@ -7,7 +7,7 @@
         "--mcp"
       ],
       "env": {
-        "GOL_CLIENT_ID": "gol_test_enterprise"
+        "GOL_CLIENT_ID": "gol_2083cd8ada664e8dbc8360c26d550793"
       }
     }
   }

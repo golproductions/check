@@ -4,6 +4,9 @@
 // dist/: terser (compress + mangle), then javascript-obfuscator (string arrays,
 // RC4, self-defending). Two-pass: the moat is the backend; obfuscation is
 // the tax on copiers.
+//
+// Preflight source never ships in this package at all — it lives on the server
+// and is fetched at install time, gated behind a valid CLIENT_ID.
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
@@ -16,8 +19,9 @@ mkdirSync("dist", { recursive: true });
 
 for (const f of ["index.js", "mcp.js"]) {
   // Pass 1: Terser — compress + mangle
+  const srcFile = `src/${f}`;
   execSync(
-    `npx --yes terser@5 src/${f} --module --compress passes=2 --mangle toplevel=true --format comments=false --output dist/${f}`,
+    `npx --yes terser@5 ${srcFile} --module --compress passes=2 --mangle toplevel=true --format comments=false --output dist/${f}`,
     { stdio: "inherit" }
   );
 
