@@ -1,15 +1,14 @@
 {
   "name": "@golproductions/check",
-  "version": "3.6.1",
-  "description": "Less hallucinations. A command firewall for AI agents: validates every shell command before execution, so fabricated commands are denied before they run.",
+  "version": "4.1.4",
+  "description": "Less hallucinations. A command firewall for Claude Code: validates every shell command before execution, so fabricated commands are denied before they run.",
   "bin": {
-    "check": "dist/index.js",
-    "check-mcp": "dist/mcp.js"
+    "check": "dist/index.js"
   },
   "scripts": {
     "build": "node build.mjs",
     "release": "node release.mjs",
-    "prepublishOnly": "node build.mjs && node test/version-lock.mjs && node test/upgrade-path.mjs && node test/mcp-flag.mjs",
+    "prepublishOnly": "node build.mjs && node test/version-lock.mjs && node test/upgrade-path.mjs",
     "verify": "node test/shipped-truth.mjs",
     "test:install": "node test/install-e2e.mjs"
   },
@@ -17,6 +16,9 @@
   "engines": {
     "node": ">=18"
   },
+  "os": [
+    "win32"
+  ],
   "files": [
     "dist/",
     "LICENSE",
@@ -28,21 +30,9 @@
     "ai-agents",
     "ai-coding-agent",
     "claude-code",
-    "cursor",
-    "windsurf",
-    "gemini-cli",
-    "amazon-q",
-    "continue-dev",
-    "roo-code",
-    "mcp",
-    "model-context-protocol",
     "ai-safety",
     "developer-tools"
   ],
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "zod": "^3.24.0"
-  },
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
