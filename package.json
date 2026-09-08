@@ -1,6 +1,6 @@
 {
   "name": "@golproductions/check",
-  "version": "4.1.5",
+  "version": "4.1.9",
   "description": "Less hallucinations. A command firewall for Claude Code: validates every shell command before execution, so fabricated commands are denied before they run.",
   "bin": {
     "check": "dist/index.js"
