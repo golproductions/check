@@ -10,23 +10,20 @@ Installing mints a free key bound to your machine. No signup, 120 free checks pe
 
 ---
 
-## Integrate it into anything
+## How it works
 
-Check is one primitive with three faces. Pick the one your environment speaks.
+`--install` wires Check into **Claude Code** as two hooks:
 
-### 1. Hook mode: blocks bad commands before they run
-
-`--install` wires Check as a preflight hook for **Claude Code**. Every command is intercepted before it runs, checked against your live machine, and either passed or blocked.
+1. **Command gate** — every shell command is intercepted before it runs, checked against your live machine, and either passed or blocked.
+2. **Preflight snapshot** — fires before every prompt you submit. It reads your actual environment (running ports, local data files, recent activity) and injects a verified snapshot into Claude's context before it reasons. Claude sees what is true on your machine, not what it assumes.
 
 ```
-echo '{"tool_input":{"command":"some command"}}' | node ~/.check/check.mjs
+echo '{"tool_input":{"command":"some command"}}' | node ~/.check/check-hook.mjs
 → {"hookSpecificOutput":{"permissionDecision":"allow"}}          # runnable
 → {"hookSpecificOutput":{"permissionDecision":"deny", ...}}      # hallucinated
 ```
 
-**Preflight gate.** `--install` also wires a hook that fires before every prompt you submit. It reads your actual environment - running ports, local data files, recent activity - and injects a verified snapshot into Claude's context before it reasons. Claude sees what is true on your machine, not what it assumes.
-
-### 2. CLI: for scripts, CI, git hooks, anything with a shell
+### CLI: for scripts, CI, git hooks, anything with a shell
 
 ```
 check "netlify-cli deploy --prod"        # → invalid   (exit 1)
@@ -36,7 +33,7 @@ echo "some command" | check              # pipe mode
 
 Exit codes make it composable: gate a CI step, a git pre-push hook, a Docker entrypoint, a cron job.
 
-### 3. HTTP: for everything else, in any language
+### HTTP: for everything else, in any language
 
 ```
 POST https://triage.golproductions.com/preflight
@@ -84,7 +81,7 @@ Once it's revealed: paste it into "Connect key" at [the console](https://www.gol
 ## Manage
 
 ```
-npx @golproductions/check@latest --status      # your key + where Check is installed
+npx @golproductions/check@latest --status      # your key + Check installation status
 npx @golproductions/check@latest --credits     # balance and free checks remaining
 npx @golproductions/check@latest --print       # get your key back, password-gated (run this yourself)
 npx @golproductions/check@latest --uninstall   # remove from every tool
