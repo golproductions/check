@@ -8,7 +8,7 @@ Stop reading. Check validates every shell command against your actual machine be
 npx @golproductions/check@latest --install
 ```
 
-Installing mints a free key bound to your machine. No signup, 120 free checks per day, then $0.0068 AUD each from a prepaid balance. A check is one verdict: validating a command before it runs, or answering one `/pipe` message. Local syntax errors are caught before any network call and are always free. Need more? Get a paid GOL API Key at [the console](https://www.golproductions.com/console.html).
+Installing mints a free key bound to your machine. No signup, 120 free checks per day, then $0.0068 AUD each from a prepaid balance. A check is one request: either a message you submit (scanned and annotated with verified environment facts before your AI sees it) or a command your AI writes (validated against your real machine before it runs). Both bill equally. Local syntax errors are caught before any network call and are always free. Need more? Get a paid GOL API Key at [the console](https://www.golproductions.com/console.html).
 
 ---
 
