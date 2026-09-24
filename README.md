@@ -1,86 +1,80 @@
 # Check
 
-Every command it writes, you read first. You have to, because the ones it makes up look exactly like the ones that work.
-
-Stop reading. Check validates every shell command against your actual machine before it runs. What exists passes through. What doesn't gets blocked. Deterministic, one round trip to the nearest Cloudflare edge, no AI inside.
+An anti-hallucination layer for Claude Code. Before your AI runs a command or writes a file, your own machine checks it. What your machine proves missing is blocked, and the AI is shown your machine's own answer, so its next attempt is a fix instead of another guess.
 
 ```
 npx @golproductions/check@latest --install
 ```
 
-Installing mints a free key bound to your machine. No signup, 120 free checks per day, then $0.0068 AUD each from a prepaid balance. A check is one request: either a message you submit (scanned and annotated with verified environment facts before your AI sees it) or a command your AI writes (validated against your real machine before it runs). Both bill equally. Local syntax errors are caught before any network call and are always free. Need more? Get a paid GOL API Key at [the console](https://www.golproductions.com/console.html).
+Installing creates a free key on your machine. No signup. 120 free checks a day, then $0.0068 AUD each from a prepaid balance. A check is one command validated against your machine. Your messages are not read or billed. Syntax errors and file writes are checked on your machine, with no network call, and are always free.
+
+Windows, Node 18 or newer, Claude Code.
 
 ---
 
-## How it works
+## What it checks
 
-`--install` wires Check into **Claude Code** as two hooks:
+Check adds one hook to Claude Code: **PreToolUse**, on Bash, PowerShell, Write, Edit and NotebookEdit. Nothing is added to the AI's context before it reasons, and nothing is written to your project.
 
-1. **Command gate.** Every shell command is intercepted before it runs, checked against your live machine, and either passed or blocked.
-2. **Preflight snapshot.** Fires before every prompt you submit. It reads your actual environment (running ports, local data files, recent activity) and injects a verified snapshot into Claude's context before it reasons. Claude sees what is true on your machine, not what it assumes.
+**Commands.** Your own bash reads the command without running any of it and names every program it would call (PowerShell commands are read by PowerShell's own parser). Then:
 
-```
-echo '{"tool_input":{"command":"some command"}}' | node ~/.check/check-hook.mjs
-```
+| Question | Who answers |
+|---|---|
+| Does this program exist? | your shell (`type`) |
+| Does this `./script` exist? | your file system |
+| Is this git subcommand, branch, tag, commit or tracked file real? | your git |
+| Does this npm, PyPI or crates.io package exist? | the package registry |
+| Does the command parse? | your shell's parser, locally |
 
-### CLI
-
-For scripts, CI, git hooks, anything with a shell.
-
-```
-check "netlify-cli deploy --prod"        # invalid   (exit 1)
-check "netlify deploy --prod"            # runnable  (exit 0)
-echo "some command" | check              # pipe mode
-```
-
-Exit codes make it composable: gate a CI step, a git pre-push hook, a Docker entrypoint.
-
-### HTTP
-
-For everything else, in any language.
+A block looks like this:
 
 ```
-POST https://triage.golproductions.com/preflight
-Header: X-GOL-CLIENT-ID: your_key
-Body:   {"command": "the command to validate"}
-
-{"verdict": "runnable" | "invalid", "reason": "...", "daily_remaining": 119}
+check: bash on this machine said: type: jq: not found
+check: npm package 'left-padd' does not exist on the npm registry. Use a real package name.
 ```
 
-That is the whole contract. Rate limit 60/min.
+**File writes.** Shell, Python and PowerShell files are parsed on your machine before they are written; a file that would not parse is blocked. JSON and JavaScript files are not checked yet.
 
----
+## Where Check stays silent
 
-## Your commands always run
+Where your machine can't give a definite answer, Check lets the action through rather than guess:
 
-Only server-side verification is paid. Nothing about billing ever blocks execution, only the deeper check that verifies it first.
+- commands inside `$(...)`, `eval` or `bash -c`
+- git and `./script` checks after a command changes folder (`cd`, `pushd`, `git -C`)
+- everything after `PATH=`, `source` or `.` in the same command
+- missing programs in PowerShell commands
+- the rest of a line after `wget` or `http`
 
-Free tier exhausted, balance empty, bad key, rate limited, the server itself is down: every one of these is a billing or infrastructure state, never a verdict on your command. When any of them happens, Check tells you plainly what is off, that local syntax checking is still running for free, and how to fix it. Verification resumes the instant your balance lands. No reinstall.
+It also cannot know intent: a real command that does the wrong thing passes. Check is not a security tool.
 
----
+## Fails open
+
+Server unreachable, rate limited, balance empty, key rejected: the command runs, with a warning at most once a day. Check never blocks because Check itself failed, and your balance never blocks your agent.
+
+## What leaves your machine
+
+Per command: the command text with credential patterns redacted (API keys, tokens, JWTs, private keys, Bearer tokens, emails, card-like numbers; a secret in a PowerShell `$env:` assignment is sent as written), the working folder with your username masked, and your machine's answers. File contents never leave. Command text is not written to storage for customer keys; what is kept is usage counters and a billing record (time, cost, pass or block). Details: [privacy policy](https://golproductions.com/privacy).
+
+## Pricing
+
+120 free checks a day, capped per key, per device and per network. Then $0.0068 AUD per check from a prepaid balance: any whole amount from $5 to $500 AUD at [the console](https://golproductions.com/console). One check per command, however many round trips it takes. No subscription, nothing auto-recharges, credits don't expire.
 
 ## Keys
 
 | Tier | What | Where |
 |------|------|-------|
-| **GOL Client ID** (free) | Minted on install, bound to the machine, shared by every tool on it. 120 checks/day, forever. | `~/.check/key` |
-| **GOL API Key** (paid) | Prepaid balance ($0.0068 AUD/check after the daily 120), spend caps, dashboard, 2FA. | [Console](https://www.golproductions.com/console.html) |
-
-Same header, same API. The tier is just what the key can do. Credits you buy never expire.
+| **GOL Client ID** (free) | Created on install, bound to the machine. 120 checks a day. | `~/.check/key` |
+| **GOL API Key** (paid) | Prepaid balance ($0.0068 AUD a check after the daily 120), spend caps, dashboard, 2FA. | [Console](https://golproductions.com/console) |
 
 ### Getting your key back out
 
 The full key prints once, at `--install`. After that, every surface shows it masked, because it is a credential and an AI agent reads everything a hook prints back.
 
-To retrieve it safely:
-
 ```
 npx @golproductions/check@latest --print
 ```
 
-Run this yourself, in a real terminal. The first time, it asks you to set a password (never written to disk, never told to any agent) and saves your key encrypted to a file on your Desktop. Every time after, it asks for that password before showing the key. An AI agent can trigger the prompt, but it was never told the password and has nothing to type into it. Only you, typing it yourself, ever see the plaintext.
-
-Paste it into "Connect key" at [the console](https://www.golproductions.com/console.html) while signed in to permanently link it to your account. Then delete the encrypted file.
+Run this yourself, in a real terminal. The first time, it asks you to set a password (never written to disk, never told to any agent) and saves your key encrypted to a file on your Desktop. Every time after, it asks for that password before showing the key. Paste it into "Connect key" at [the console](https://golproductions.com/console) while signed in to link it to your account, then delete the encrypted file.
 
 ## Manage
 
@@ -91,11 +85,13 @@ npx @golproductions/check@latest --print       # get your key back, password-gat
 npx @golproductions/check@latest --uninstall   # remove hooks
 ```
 
+Check does not update itself. Run the install command again to get the latest version. Upgrading from an earlier version also removes the retired prompt hook.
+
 ## Terms
 
 By installing or using Check you agree to the [Terms of Service](https://golproductions.com/terms) and [Privacy Policy](https://golproductions.com/privacy). The service is provided as is; see the Terms for the full picture, including your Australian Consumer Law rights.
 
-[Product](https://golproductions.com/check) · [Pricing](https://golproductions.com/pricing) · [Console](https://www.golproductions.com/console.html) · [Updates](https://www.golproductions.com/updates.html)
+[Product](https://golproductions.com/check) · [How it works](https://golproductions.com/what-check-does) · [Pricing](https://golproductions.com/pricing) · [Console](https://golproductions.com/console)
 
 ## License
 
