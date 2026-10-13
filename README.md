@@ -2,26 +2,21 @@
 
 Welcome to GOL Productions, the modern SaaS company that builds what we call deterministic gates: checks where the answer comes from your own machine, never from a guess. Check is our gate for AI coding agents.
 
-First, your GOL API Key: create it at [the console](https://golproductions.com/console) (14 days free), then set it **yourself, in your own terminal, not through your AI**:
+**1. Get your key** at [the console](https://golproductions.com/console): sign in, press *Enable authenticator* and scan the QR code with an authenticator app, then press *Create GOL API Key*. 14 days free.
 
-```
-npx @golproductions/check@latest --key
-```
+**2. No Node.js?** Install Node.js 18 or newer from [nodejs.org](https://nodejs.org) (free).
 
-Then install, yourself or by telling your AI:
+**3. Run one line in a terminal, yourself, not through your AI**, and paste your key when it asks:
 
 ```
 npx @golproductions/check@latest --install
 ```
 
-No Node.js? One line installs it and Check:
+It asks for your key (masked), lists the AI agents it found, and adds Check to them when you press Enter.
 
-```
-irm https://golproductions.com/install.ps1 | iex           # Windows, in PowerShell
-curl -fsSL https://golproductions.com/install.sh | sh       # Linux
-```
+**4. Restart your AI agent.**
 
-Windows or Linux, Node 18 or newer. Works with AI coding agents: the installer finds the ones on your machine and asks which to set up. The installer never makes keys and never prints yours; with no key on the machine it installs nothing and says how to get one.
+Windows or Linux; macOS isn't supported yet. The installer never makes keys and never prints yours. Run by an AI with no key on the machine, it installs nothing and tells you to run it yourself.
 
 The [install guide](https://golproductions.com/guide) covers making it work in each agent, what to expect, and how to know it's working.
 
@@ -166,7 +161,7 @@ Per message: its ID, never its text. Per command: the command text with credenti
 
 ## Keys
 
-One kind of key: the **GOL API Key**. It's made only at [the console](https://golproductions.com/console), by a signed-in account with two-factor authentication, and it's free for 14 days from its creation. After that it draws on its prepaid balance. On a machine it's saved in `~/.check/key`, set by you with `--key`.
+One kind of key: the **GOL API Key**. It's made only at [the console](https://golproductions.com/console), by a signed-in account with two-factor authentication, and it's free for 14 days from its creation. After that it draws on its prepaid balance. On a machine it's saved in `~/.check/key`: the install asks for it, or set it yourself with `--key`.
 
 Keep it safe: never paste it into an AI chat or prompt, a project file, a commit or a screenshot. Anyone with it can spend your credit. If it leaks, press Rotate at the console: the old key stops at once and the balance moves to the new one. On a server or in CI, pass it through the `GOL_API_KEY` environment variable from your secret store.
 
