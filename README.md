@@ -78,7 +78,8 @@ Each time, the AI read the answer and fixed it on the next try: it dropped `pkil
 | Does the module `python -m` would run exist? | your Python, from the folder the command runs in |
 | Is the package a download-and-run tool would fetch real (`npx`, `pnpm dlx`, `yarn dlx`, `bunx`, `uvx`, `pipx run`)? | your machine (is it installed here?), then the npm registry or PyPI |
 | Is the Docker image or tag that `docker pull`, `run` or `create` would fetch real? | your Docker (is it here?), then Docker Hub |
-| Does the folder `cd` goes to, the script `node`, `python` or `bash` would run, or the `npm`, `pnpm` or `yarn run` script exist? Does the `git push` remote? | your file system, `package.json`, your git |
+| Does the folder `cd` goes to, or the `npm`, `pnpm` or `yarn run` script exist? Does the `git push` remote? | your file system, `package.json`, your git |
+| Does the script `node`, `bash`, `sh`, `ruby` or `php` would run exist? Does the file `cat`, `head`, `tail`, `wc`, `ls`, `Get-Content` or `Get-ChildItem` would read? | that tool itself (`node --check`, `bash -n`, `ruby -c`, `php -l`, or the reading tool with its output thrown away), in its own words |
 | Does the command parse? | your shell's own parser |
 | Does the code passed to `node -e` or `python -c`, or fed to `node` or `python -` through a heredoc, parse as it will arrive? | node and python, including after Git Bash halves its backslashes |
 | Will this file still parse after the write, whether written by Write, Edit, a heredoc, `echo` or `printf`? | `bash -n`, Python, PowerShell, `node --check`, and the JSON parser npm uses for `package.json` |
@@ -100,7 +101,7 @@ Where your machine can't give a definite answer, Check lets the action through r
 - a script run after an earlier part of the same command, which may have made it
 - a program or file the command tests for first (`command -v`, `which`, `type`, `hash`, `test`, `[`; in PowerShell `Get-Command`, `Test-Path`, `try`/`catch`, `$?`, `$LASTEXITCODE`)
 - missing programs in PowerShell commands that load a module, define an alias or function, dot-source a script, change `$env:Path` or run on another machine, or that both installed PowerShells don't agree on
-- a script or `python -m` module after the command changes folder, or after options before it (`node --inspect x.js`)
+- a `python -m` module after the command changes folder; a `ruby` or `php` script with options before it; scripts run by Python, Perl or tsx (none of them can read their own arguments without running code)
 - files written by `echo` or `printf` in any form but one single-quoted argument with `>`; `.jsx` and TypeScript files; text a parser can't tell from a dialect (an unterminated string in a new `.js` file)
 - package checks for an ecosystem this machine installs from a private registry, or a command that names another source (`choco -s`, `Install-Module -Repository`, `uvx --from`)
 - version ranges and wildcards (`~> 7.0`, `^2.0`, `13.*`): the name is still checked; versions on the PowerShell Gallery; winget, scoop and Go modules
